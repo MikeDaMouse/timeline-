@@ -137,10 +137,44 @@
             font-size: 24px;
             cursor: pointer;
         }
+    #loginForm {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        #loginForm form {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .event img {
+            max-width: 100%;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        #imagePreview {
+            max-width: 100%;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
-    <h1>Mobile Timeline App</h1>
+    <div id="loginForm">
+        <form onsubmit="return login(event)">
+            <input type="password" id="password" placeholder="Enter password" required>
+            <button type="submit">Login</button>
+        </form>
+    </div>
+
+    <h1>Secure Mobile Timeline App</h1>
     <div id="timeline">
         <div class="timeline-line"></div>
     </div>
@@ -154,6 +188,8 @@
                 <input type="text" id="eventTitle" placeholder="Event Title" required>
                 <input type="date" id="eventDate" required>
                 <textarea id="eventDescription" placeholder="Event Description (optional)"></textarea>
+                <input type="file" id="eventImage" accept="image/*">
+                <img id="imagePreview" src="" alt="Image preview" style="display: none;">
                 <button type="submit">Save Event</button>
             </form>
         </div>
@@ -161,6 +197,19 @@
 
     <script>
         let events = [];
+        const CORRECT_PASSWORD = 'your_secure_password_here'; // Change this to your desired password
+        
+        function login(e) {
+            e.preventDefault();
+            const password = document.getElementById('password').value;
+            if (password === CORRECT_PASSWORD) {
+                document.getElementById('loginForm').style.display = 'none';
+                loadEvents();
+            } else {
+                alert('Incorrect password');
+            }
+            return false;
+        }
 
         function loadEvents() {
             const savedEvents = localStorage.getItem('timelineEvents');
@@ -185,6 +234,7 @@
                     <h3>${event.title}</h3>
                     <p><strong>Date:</strong> ${new Date(event.date).toLocaleDateString()}</p>
                     ${event.description ? `<p>${event.description}</p>` : ''}
+                    ${event.image ? `<img src="${event.image}" alt="Event image">` : ''}
                     <div class="event-actions">
                         <button onclick="editEvent(${index})">Edit</button>
                         <button onclick="deleteEvent(${index})">Delete</button>
@@ -200,16 +250,32 @@
             const title = document.getElementById('eventTitle').value;
             const date = document.getElementById('eventDate').value;
             const description = document.getElementById('eventDescription').value;
+            const imageFile = document.getElementById('eventImage').files[0];
             
-            if (id) {
-                events[id] = { title, date, description };
+            const saveEventData = (imageDataUrl) => {
+                const eventData = { title, date, description };
+                if (imageDataUrl) {
+                    eventData.image = imageDataUrl;
+                }
+                
+                if (id) {
+                    events[id] = { ...events[id], ...eventData };
+                } else {
+                    events.push(eventData);
+                }
+                
+                saveEvents();
+                renderTimeline();
+                closeForm();
+            };
+
+            if (imageFile) {
+                const reader = new FileReader();
+                reader.onload = (e) => saveEventData(e.target.result);
+                reader.readAsDataURL(imageFile);
             } else {
-                events.push({ title, date, description });
+                saveEventData();
             }
-            
-            saveEvents();
-            renderTimeline();
-            closeForm();
         }
 
         function editEvent(index) {
@@ -218,6 +284,8 @@
             document.getElementById('eventTitle').value = event.title;
             document.getElementById('eventDate').value = event.date;
             document.getElementById('eventDescription').value = event.description || '';
+            document.getElementById('imagePreview').src = event.image || '';
+            document.getElementById('imagePreview').style.display = event.image ? 'block' : 'none';
             showForm();
         }
 
@@ -239,13 +307,29 @@
             document.getElementById('eventTitle').value = '';
             document.getElementById('eventDate').value = '';
             document.getElementById('eventDescription').value = '';
+            document.getElementById('eventImage').value = '';
+            document.getElementById('imagePreview').src = '';
+            document.getElementById('imagePreview').style.display = 'none';
         }
 
         document.getElementById('addEventBtn').addEventListener('click', showForm);
         document.getElementById('closeForm').addEventListener('click', closeForm);
         document.getElementById('eventFormContent').querySelector('form').addEventListener('submit', addOrUpdateEvent);
 
-        window.addEventListener('load', loadEvents);
+        document.getElementById('eventImage').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('imagePreview').src = e.target.result;
+                    document.getElementById('imagePreview').style.display = 'block';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // We don't auto-load events anymore, as we need to wait for password entry
+        // window.addEventListener('load', loadEvents);
         window.addEventListener('beforeunload', saveEvents);
     </script>
 </body>
